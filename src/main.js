@@ -52,6 +52,12 @@ renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1;
 canvasHost.appendChild(renderer.domElement);
+renderer.domElement.tabIndex = 0;
+renderer.domElement.setAttribute('role', 'application');
+renderer.domElement.setAttribute('aria-label', '鹈鹕骑车游戏，W S 加速刹车，A D 或左右方向键变道');
+function focusGame() {
+  renderer.domElement.focus({ preventScroll: true });
+}
 
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0xffffff, 0.0052);
@@ -725,6 +731,7 @@ function restartChallenge() {
   setCamMode('chase', true);
   audio.mute(false);
   updateChallengeHud();
+  if (S.started) focusGame();
 }
 function updateChallengeHud() {
   const flight = challenge.phase !== 'ride';
@@ -1108,9 +1115,24 @@ const KEYMAP = {
   KeyD: 'right',
   ArrowRight: 'right',
 };
+const GAME_CODES = new Set([
+  ...Object.keys(KEYMAP), 'Space', 'KeyB', 'KeyT', 'KeyH', 'KeyC', 'KeyN',
+  'KeyQ', 'KeyE', 'KeyM', 'KeyK', 'KeyF', 'KeyU', 'KeyP', 'KeyR',
+]);
+function claimGameKey(e) {
+  if (!S.started || e.isComposing || e.metaKey || e.ctrlKey || e.altKey || !GAME_CODES.has(e.code)) return false;
+  const target = e.target;
+  if (target instanceof Element && (
+    target.isContentEditable || target.closest('input, textarea, select, a') ||
+    (e.code === 'Space' && target.closest('button'))
+  )) return false;
+  // Reader extensions listen on document; claim game keys before they get there.
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  return true;
+}
 addEventListener('keydown', (e) => {
-  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLAnchorElement) return;
-  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (!claimGameKey(e)) return;
   const k = KEYMAP[e.code];
   if (k) {
     keys[k] = true;
@@ -1170,13 +1192,15 @@ addEventListener('keydown', (e) => {
     default:
       break;
   }
-});
+}, { capture: true });
 addEventListener('keyup', (e) => {
   const k = KEYMAP[e.code];
   if (k) keys[k] = false;
   // macOS 按住 Cmd 时不会发送其它键的 keyup
   if (e.key === 'Meta') for (const key of Object.keys(keys)) keys[key] = false;
-});
+  claimGameKey(e);
+}, { capture: true });
+addEventListener('keypress', claimGameKey, { capture: true });
 addEventListener('blur', () => {
   for (const k of Object.keys(keys)) keys[k] = false;
   document.querySelectorAll('[data-key]').forEach(b => b.classList.remove('on'));
@@ -1184,6 +1208,7 @@ addEventListener('blur', () => {
 
 const down = { x: 0, y: 0, t: 0 };
 renderer.domElement.addEventListener('pointerdown', (e) => {
+  focusGame();
   down.x = e.clientX;
   down.y = e.clientY;
   down.t = performance.now();

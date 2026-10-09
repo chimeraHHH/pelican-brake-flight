@@ -6,7 +6,7 @@
   "scripts": {
     "build": "node build.mjs",
     "test": "node --test tests/*.test.mjs",
-    "test:browser": "node tests/browser-flight.mjs && node tests/mobile-flight.mjs"
+    "test:browser": "node tests/browser-flight.mjs && node tests/mobile-flight.mjs && node tests/browser-keyboard.mjs"
   },
   "keywords": [],
   "author": "",
